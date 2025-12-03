@@ -9,5 +9,9 @@ services:
         value: 18
       - key: NEW_API_KEY
         sync: false
+      - key: PROVIDER_MODEL
+        value: provider-4/imagen-3.5
+      - key: API_ENDPOINT
+        value: https://api.a4f.co/v1/images/generations
       - key: PUBLIC_APP_BASE_URL
         sync: false

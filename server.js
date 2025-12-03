@@ -2,12 +2,27 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env files
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Log environment variables for debugging
+console.log('🔍 Environment variables check:');
+console.log('  NEW_API_KEY:', process.env.NEW_API_KEY ? 'Set' : 'Not set');
+console.log('  API_KEY:', process.env.API_KEY ? 'Set' : 'Not set');
+console.log('  PROVIDER_MODEL:', process.env.PROVIDER_MODEL || 'undefined');
+console.log('  API_ENDPOINT:', process.env.API_ENDPOINT || 'undefined');
+
+if (!process.env.NEW_API_KEY && !process.env.API_KEY) {
+    console.error('CRITICAL: API_KEY missing in server environment.');
+}
 
 // Middleware
 app.use(express.json());
