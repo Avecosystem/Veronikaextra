@@ -30,7 +30,7 @@ export default async function handler(request: Request) {
     }
 
     const customerId = (email || name || orderId).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 45);
-    const baseUrl = (process.env.PUBLIC_APP_BASE_URL || 'https://veronikaextra.netlify.app').replace(/\/$/, '');
+    const baseUrl = (process.env.PUBLIC_APP_BASE_URL || 'https://veronikaextra-image.onrender.com').replace(/\/$/, '');
     const httpsReturnUrl = `${baseUrl}/#/profile?order_id={order_id}&status={order_status}`;
     const payload = {
       order_id: orderId,

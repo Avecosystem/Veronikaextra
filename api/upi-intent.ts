@@ -2,7 +2,7 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers','X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') { return res.status(405).json({ message: 'Method Not Allowed' }); }
@@ -15,7 +15,7 @@ export default async function handler(req: any, res: any) {
     const { orderId, amount, email, name, phone = '9999999999' } = req.body || {};
     if (!orderId || !amount || !email || !name) { return res.status(400).json({ message: 'Invalid request. Missing required fields.' }); }
 
-    const baseUrl = (process.env.PUBLIC_APP_BASE_URL || 'https://veronikaextra.netlify.app').replace(/\/$/, '');
+    const baseUrl = (process.env.PUBLIC_APP_BASE_URL || 'https://veronikaextra-image.onrender.com').replace(/\/$/, '');
     const httpsReturnUrl = `${baseUrl}/#/profile?order_id={order_id}&status={order_status}`;
 
     const customerId = (email || name || orderId).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 45);
