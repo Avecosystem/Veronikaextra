@@ -132,3 +132,9 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🔌 API endpoints available at: /api/*`);
     console.log(`✨ Available API handlers: ${Object.keys(apiHandlers).join(', ')}`);
 });
+if (!process.env.PRISMA_CLIENT_ENGINE_TYPE || process.env.PRISMA_CLIENT_ENGINE_TYPE === 'client') {
+    process.env.PRISMA_CLIENT_ENGINE_TYPE = 'library';
+}
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = 'file:/opt/render/project/src/prisma/dev.db';
+}
