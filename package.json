@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@netlify/functions": "^5.1.0",
-    "@prisma/client": "^7.1.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@unhead/react": "^2.0.0",
