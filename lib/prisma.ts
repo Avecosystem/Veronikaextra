@@ -5,16 +5,8 @@ declare global {
     var prisma: PrismaClient | undefined;
 }
 
-// Configure Prisma for Node.js with explicit datasource
-const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
-
-const prisma = global.prisma || new PrismaClient({
-    datasources: {
-        db: {
-            url: databaseUrl
-        }
-    }
-});
+// Simple Prisma initialization - reads DATABASE_URL from schema.prisma
+const prisma = global.prisma || new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
     global.prisma = prisma;
