@@ -8,15 +8,15 @@
     "dev:netlify": "netlify dev",
     "build": "vite build --debug",
     "preview": "vite preview",
-    "start": "tsx server.js",
+    "start": "node migrate.js && tsx server.js",
     "test:env": "node test-env.js",
     "test:api": "node test-api.js",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "migrate": "node migrate.js"
   },
   "dependencies": {
     "@netlify/functions": "^5.1.0",
     "@prisma/client": "^7.1.0",
-    "@prisma/config": "^7.1.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@unhead/react": "^2.0.0",

@@ -27,18 +27,13 @@ export const handler: Handler = async (event) => {
             return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: 'Email and password required' }) };
         }
 
-        // Ensure prisma is connected
-        if (!prisma) {
-            return { statusCode: 500, headers, body: JSON.stringify({ success: false, message: 'Database connection failed' }) };
-        }
-
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
             return { statusCode: 400, headers, body: JSON.stringify({ success: false, message: 'Email already registered' }) };
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
-        const INITIAL_CREDITS = 15;
+        const INITIAL_CREDITS = 25;
 
         const user = await prisma.user.create({
             data: {

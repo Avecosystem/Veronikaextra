@@ -7,6 +7,10 @@ import dotenv from 'dotenv';
 // Load environment variables from .env files
 dotenv.config();
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'file:./db.sqlite';
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -46,13 +50,27 @@ const apiHandlers = {};
 
 // Dynamically import and register API handlers
 const registerApiHandler = async (name, modulePath) => {
-    try {
-        const module = await import(modulePath);
-        apiHandlers[name] = module.default;
-        console.log(`✅ Registered API handler: ${name}`);
-    } catch (error) {
-        console.error(`❌ Failed to load API handler ${name}:`, error.message);
+  try {
+    const module = await import(modulePath);
+    // Handle both .handler and .default exports
+    apiHandlers[name] = module.handler || module.default;
+    console.log(`✅ Registered API handler: ${name}`);
+  } catch (error) {
+    console.error(`❌ Failed to load API handler ${name}:`, error.message);
+    const candidates = [
+      modulePath.replace(/\.ts$/, '.js'),
+      modulePath.replace('netlify/functions', 'api').replace(/\.ts$/, '.ts'),
+      modulePath.replace('netlify/functions', 'api').replace(/\.ts$/, '.js')
+    ];
+    for (const alt of candidates) {
+      try {
+        const m = await import(alt);
+        apiHandlers[name] = m.handler || m.default || m;
+        console.log(`✅ Registered API handler via fallback: ${name} -> ${alt}`);
+        return;
+      } catch {}
     }
+  }
 };
 
 // Register all API handlers
@@ -71,8 +89,8 @@ await Promise.all([
 
 // API endpoint handler
 app.all('/api/:endpoint', async (req, res) => {
-    const endpoint = req.params.endpoint;
-    const handler = apiHandlers[endpoint];
+  const endpoint = req.params.endpoint;
+  const handler = apiHandlers[endpoint];
 
     if (!handler) {
         return res.status(404).json({
@@ -81,40 +99,67 @@ app.all('/api/:endpoint', async (req, res) => {
         });
     }
 
-    try {
-        // Create a Request object compatible with Netlify function format
-        const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
-        const requestInit = {
-            method: req.method,
-            headers: req.headers,
-            body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined
-        };
+  try {
+    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    const requestInit = {
+      method: req.method,
+      headers: req.headers,
+      body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined
+    };
 
-        const request = new Request(url, requestInit);
+    const webRequest = new Request(url, requestInit);
 
-        // Call the Netlify function handler
-        const response = await handler(request, { req, res });
+    const event = {
+      httpMethod: req.method,
+      headers: req.headers,
+      body: requestInit.body,
+      queryStringParameters: req.query,
+      pathParameters: { endpoint }
+    };
 
-        // Handle Response object
-        if (response && typeof response.status === 'number') {
-            const body = await response.text();
-            const headers = Object.fromEntries(response.headers.entries());
+    let response = await handler(event, {});
 
-            // Set response headers
-            Object.entries(headers).forEach(([key, value]) => {
-                res.setHeader(key, value);
-            });
-
-            // Send response
-            res.status(response.status).send(body);
-        }
-    } catch (error) {
-        console.error(`Error handling API request to ${endpoint}:`, error);
-        res.status(500).json({
-            message: 'Internal Server Error',
-            error: error.message
-        });
+    if (response instanceof Response) {
+      const headersObj = {};
+      response.headers.forEach((v, k) => { headersObj[k] = v; });
+      Object.entries(headersObj).forEach(([k, v]) => res.setHeader(k, v));
+      const buf = await response.text();
+      res.status(response.status).send(buf);
+      return;
     }
+
+    // Try calling with web Request for handlers expecting Request
+    if (!response || (typeof response.statusCode !== 'number' && typeof response.headers !== 'object')) {
+      response = await handler(webRequest, {});
+    }
+
+    if (response && typeof response.statusCode === 'number') {
+      if (response.headers) {
+        Object.entries(response.headers).forEach(([key, value]) => {
+          res.setHeader(key, value);
+        });
+      }
+      res.status(response.statusCode).send(response.body);
+      return;
+    }
+
+    if (response instanceof Response) {
+      const headersObj = {};
+      response.headers.forEach((v, k) => { headersObj[k] = v; });
+      Object.entries(headersObj).forEach(([k, v]) => res.setHeader(k, v));
+      const buf = await response.text();
+      res.status(response.status).send(buf);
+      return;
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error(`Error handling API request to ${endpoint}:`, error);
+    res.status(500).json({
+      message: 'Internal Server Error',
+      error: error.message
+    });
+  }
 });
 
 // Serve static files from the dist directory
@@ -125,16 +170,45 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📦 Serving static files from: ${path.join(__dirname, 'dist')}`);
-    console.log(`🔌 API endpoints available at: /api/*`);
-    console.log(`✨ Available API handlers: ${Object.keys(apiHandlers).join(', ')}`);
+// Database initialization
+const initializeDatabase = async () => {
+    try {
+        // Import prisma only when needed to avoid early initialization issues
+        const { default: prisma } = await import('./lib/prisma');
+        
+        // Check if we can connect to the database
+        await prisma.$connect();
+        console.log('✅ Database connected successfully');
+        
+        // Initialize global settings if they don't exist
+        const settings = await prisma.globalSettings.findUnique({ where: { id: 1 } });
+        if (!settings) {
+            await prisma.globalSettings.create({
+                data: {
+                    id: 1,
+                    globalNotice: '',
+                    creditsPageNotice: '',
+                    termsOfService: '',
+                    privacyPolicy: '',
+                    socialMediaLinks: '{}',
+                    creditPlans: '[]',
+                    contactDetails: '[]'
+                }
+            });
+            console.log('✅ Global settings initialized');
+        }
+    } catch (error) {
+        console.error('❌ Database initialization error:', error.message);
+        // Don't exit the process, just log the error
+    }
+};
+
+// Initialize database and start server
+initializeDatabase().then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+        console.log(`📦 Serving static files from: ${path.join(__dirname, 'dist')}`);
+        console.log(`🔌 API endpoints available at: /api/*`);
+        console.log(`✨ Available API handlers: ${Object.keys(apiHandlers).filter(h => apiHandlers[h]).join(', ')}`);
+    });
 });
-if (!process.env.PRISMA_CLIENT_ENGINE_TYPE || process.env.PRISMA_CLIENT_ENGINE_TYPE === 'client') {
-    process.env.PRISMA_CLIENT_ENGINE_TYPE = 'library';
-}
-if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = 'file:/opt/render/project/src/prisma/dev.db';
-}
