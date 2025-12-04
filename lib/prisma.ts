@@ -5,12 +5,15 @@ declare global {
     var prisma: PrismaClient | undefined;
 }
 
-// Explicitly configure Prisma for Node.js (library engine)
-// Pass datasourceUrl to avoid "client" engine type error
+// Configure Prisma for Node.js with explicit datasource
 const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
 
 const prisma = global.prisma || new PrismaClient({
-    datasourceUrl: databaseUrl
+    datasources: {
+        db: {
+            url: databaseUrl
+        }
+    }
 });
 
 if (process.env.NODE_ENV !== 'production') {
