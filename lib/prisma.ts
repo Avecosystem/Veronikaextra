@@ -5,8 +5,8 @@ declare global {
     var prisma: PrismaClient | undefined;
 }
 
-// Prisma 7 reads config from prisma.config.ts - no constructor options needed
-const prisma = global.prisma || new PrismaClient();
+// Prisma 7 requires passing an options object (even if empty) when using config file
+const prisma = global.prisma || new PrismaClient({});
 
 if (process.env.NODE_ENV !== 'production') {
     global.prisma = prisma;
