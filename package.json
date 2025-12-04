@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "start": "tsx server.js",
     "test:env": "node test-env.js",
-    "test:api": "node test-api.js"
+    "test:api": "node test-api.js",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@netlify/functions": "^5.1.0",
